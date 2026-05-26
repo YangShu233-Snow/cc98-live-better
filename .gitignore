@@ -1,0 +1,30 @@
+# --- Node.js & Package Managers ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# --- WXT Specific (WXT 特有，必须忽略) ---
+# WXT 自动生成的本地临时文件、类型定义和 Manifest 缓存
+.wxt/
+
+# WXT 的编译产物目录（包含 chrome-mv3, firefox-mv3 等）
+.output/
+
+# --- Development & OS ---
+.env
+.env.local
+.env.*.local
+.DS_Store
+Thumbs.db
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

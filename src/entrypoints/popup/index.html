@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=300">
+  <title>CC98 Live Better</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 280px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      color: #333;
+      padding: 16px;
+      background: #fafafa;
+    }
+    h1 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .version {
+      color: #999;
+      font-size: 11px;
+      margin-bottom: 14px;
+    }
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-label { font-size: 13px; }
+    .toggle-desc { font-size: 11px; color: #999; margin-top: 2px; }
+    /* toggle switch */
+    .switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #ccc;
+      border-radius: 20px;
+      transition: 0.2s;
+      cursor: pointer;
+    }
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 2px;
+      bottom: 2px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    .switch input:checked + .slider { background: #1677ff; }
+    .switch input:checked + .slider::before { transform: translateX(16px); }
+  </style>
+</head>
+<body>
+  <h1>CC98 Live Better</h1>
+  <div class="version">v1.0.0-beta.1</div>
+
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">多账号切换</div>
+      <div class="toggle-desc">管理并快速切换 CC98 账号</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="toggle-account">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">表情包收藏</div>
+      <div class="toggle-desc">收藏梗图到表情面板</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="toggle-meme">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">历史记录检索</div>
+      <div class="toggle-desc">本地搜索浏览历史</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="toggle-history">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
