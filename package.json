@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "wxt",
     "build": "wxt build -b chrome && wxt build -b firefox && wxt build -b edge",
-    "zip": "wxt zip -b chrome && wxt zip -b firefox && wxt zip -b edge"
+    "zip": "wxt zip -b chrome && wxt zip -b firefox && wxt zip -b edge",
+    "deploy": "wxt build -b firefox && wxt zip -b firefox && wxt submit --firefox-zip .output/$(node -p \"require('./package.json').name+'-'+require('./package.json').version+'-firefox.zip'\") --firefox-sources-zip .output/$(node -p \"require('./package.json').name+'-'+require('./package.json').version+'-sources.zip'\")"
   },
   "keywords": [],
   "author": "",

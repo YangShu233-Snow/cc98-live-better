@@ -5,9 +5,10 @@
 import { defineConfig } from "wxt";
 
 export default defineConfig({
-  /** 源码目录（相对于项目根目录） */
   srcDir: "src",
-  /** 扩展 manifest 附加字段（WXT 自动生成基础 manifest） */
+  suppressWarnings: {
+    firefoxDataCollection: true,
+  },
   manifest: {
     name: "CC98 Live Better",
     description: "CC98 论坛增强插件 — 多账号切换 · 表情包收藏 · 历史检索",
@@ -24,8 +25,11 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: 'cc98-live-better@yangshu233.space',
-        strict_min_version: '109.0'
-      }
+        strict_min_version: '109.0',
+        data_collection_permissions: {
+          required: ["none"],
+        },
+      },
     },
   },
 });
