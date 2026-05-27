@@ -9,7 +9,7 @@
 import { waitForElement, showToast } from "../../core/dom";
 import { CC98 } from "../../core/cc98";
 import { Storage } from "../../core/storage";
-import { loginWithAccount, saveCurrentAccount, getCurrentUserId, removeAccount } from "./token-capture";
+import { loginWithAccount, saveCurrentAccount, getCurrentUserId, removeAccount, captureCurrentToken } from "./token-capture";
 import { decrypt, encrypt, generateSalt } from "./encrypt";
 
 /** 当前处于活跃状态的账号 ID，用于高亮标记 */
@@ -301,7 +301,7 @@ async function showAccountPicker(accounts: import("../../types").AccountData[], 
       row.addEventListener("click", async () => {
         document.body.removeChild(overlay);
         const ok = await loginWithAccount(account, password);
-        if (ok) location.reload();
+        if (ok) location.replace(location.href);
         else showToast("密码错误");
         resolve(account.userId);
       });
@@ -346,7 +346,7 @@ async function showAccountPicker(accounts: import("../../types").AccountData[], 
       if (idx < 0 || idx >= allRows.length) return;
       document.body.removeChild(overlay);
       loginWithAccount(accounts[idx], password).then((ok) => {
-        if (ok) location.reload();
+        if (ok) location.replace(location.href);
         else showToast("密码错误");
         resolve(accounts[idx].userId);
       });
@@ -454,16 +454,18 @@ async function renderSwitcherMenu(): Promise<void> {
     e.preventDefault();
     e.stopPropagation();
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (accounts.length === 0) {
         promptSaveAccount();
         return;
       }
 
-      showPasswordDialog("输入主密码切换账号").then((password) => {
-        if (!password) return;
-        showAccountPicker(accounts, password);
-      });
+      const password = await showPasswordDialog("输入主密码切换账号");
+      if (!password) return;
+
+      await refreshCurrentAccount(password, accounts);
+      const freshAccounts = (await Storage.getAccounts()) ?? [];
+      showAccountPicker(freshAccounts, password);
     }, 0);
   });
 
@@ -471,6 +473,58 @@ async function renderSwitcherMenu(): Promise<void> {
   if (ul) {
     ul.appendChild(entryLi);
   }
+}
+
+/** 刷新当前账号数据：合并 use-theme → localStorage userInfo → 重新加密保存 */
+async function refreshCurrentAccount(password: string, accounts: import("../../types").AccountData[]): Promise<void> {
+  function persistDebug(partial: Record<string, unknown>): void {
+    try {
+      const chain = JSON.parse(localStorage.getItem("cc98-live-better:debug-chain") || '[]');
+      chain.push({ step: 'refresh', ts: Date.now(), ...partial });
+      localStorage.setItem("cc98-live-better:debug-chain", JSON.stringify(chain));
+    } catch {}
+  }
+
+  const salt = await Storage.getMasterSalt();
+  const hasToken = !!captureCurrentToken();
+  const uid = getCurrentUserId();
+  persistDebug({ salt: !!salt, hasToken, uid, accountsCount: accounts.length });
+  if (!salt || !hasToken) return;
+
+  const saved = accounts.find((a) => a.userId === uid);
+  persistDebug({ foundSaved: !!saved });
+  if (!saved) return;
+
+  let valid = false;
+  try {
+    await decrypt(saved.encryptedData.iv, saved.encryptedData.ciphertext, password, salt);
+    valid = true;
+  } catch { /* ignore */ }
+  persistDebug({ passwordValid: valid });
+  if (!valid) return;
+
+  const useThemeVal = localStorage.getItem("use-theme");
+  const themeNum = useThemeVal ? parseInt(useThemeVal.slice(4), 10) : NaN;
+  let mergedTheme: number | null = null;
+  if (!isNaN(themeNum)) {
+    const raw = localStorage.getItem("userInfo");
+    if (raw) {
+      try {
+        const info = JSON.parse(raw.slice(4));
+        mergedTheme = info.theme;
+        info.theme = themeNum;
+        localStorage.setItem("userInfo", `str-${JSON.stringify(info)}`);
+        persistDebug({ useTheme: useThemeVal, fromTheme: mergedTheme, toTheme: themeNum });
+      } catch (e) {
+        persistDebug({ mergeError: String(e) });
+      }
+    }
+  } else {
+    persistDebug({ useThemeRaw: useThemeVal, parseResult: 'NaN' });
+  }
+
+  await saveCurrentAccount(password);
+  persistDebug({ saveDone: true });
 }
 
 /** 初始化账号切换 UI 并持续监听 DOM 变化 */
@@ -511,7 +565,9 @@ export async function openAccountSwitcher(): Promise<void> {
   }
   const password = await showPasswordDialog("输入主密码切换账号");
   if (!password) return;
-  await showAccountPicker(accounts, password);
+  await refreshCurrentAccount(password, accounts);
+  const freshAccounts = (await Storage.getAccounts()) ?? [];
+  await showAccountPicker(freshAccounts, password);
 }
 
 export { promptSaveAccount, showPasswordDialog, showPasswordSetDialog, showChangePasswordFlow };

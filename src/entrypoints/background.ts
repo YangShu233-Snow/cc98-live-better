@@ -32,12 +32,13 @@ export default defineBackground({
       }
     });
 
-    // 快捷键：Alt+C 切换账号
+    // 快捷键：Alt+C 切换账号（仅当前焦点标签页）
     browser.commands.onCommand.addListener((command) => {
       if (command === "open-account-switcher") {
-        browser.tabs.query({ url: "*://www.cc98.org/*" }).then((tabs) => {
-          for (const tab of tabs) {
-            browser.tabs.sendMessage(tab.id!, { type: "open-account-switcher" }).catch(() => {});
+        browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+          const tab = tabs[0];
+          if (tab?.id && tab.url?.includes("cc98.org")) {
+            browser.tabs.sendMessage(tab.id, { type: "open-account-switcher" }).catch(() => {});
           }
         });
       }

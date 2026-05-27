@@ -80,6 +80,25 @@ export async function initAccountFeature(): Promise<void> {
   installKeyboardShortcut();
   console.log(`${LOG} account: Alt+C shortcut installed`);
 
+  // 跨重载调试日志
+  const debugRaw = localStorage.getItem("cc98-live-better:debug-theme");
+  if (debugRaw) {
+    try {
+      const debug = JSON.parse(debugRaw);
+      console.log(`${LOG}[theme] post-reload:`, debug);
+    } catch {}
+    localStorage.removeItem("cc98-live-better:debug-theme");
+  }
+  const chainRaw = localStorage.getItem("cc98-live-better:debug-chain");
+  if (chainRaw) {
+    try {
+      const chain = JSON.parse(chainRaw);
+      console.log(`${LOG}[theme] debug-chain (${chain.length} entries):`);
+      chain.forEach((e, i) => console.log(`${LOG}[theme]   [${i}]`, e));
+    } catch {}
+    localStorage.removeItem("cc98-live-better:debug-chain");
+  }
+
   onLocalStorageChange(async (userInfo) => {
     if (userInfo) {
       await initAccountSwitcher();

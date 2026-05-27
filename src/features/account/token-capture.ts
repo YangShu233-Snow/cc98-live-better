@@ -22,7 +22,15 @@ export function captureCurrentToken(): AccountToken | null {
   const userInfo = localStorage.getItem(CC98.STORAGE_KEYS.USER_INFO);
   const accessToken = localStorage.getItem(CC98.STORAGE_KEYS.ACCESS_TOKEN);
 
-  if (!refreshToken || !userInfo) return null;
+  if (!refreshToken || !userInfo) {
+    console.log(`[CC98 Live Better][theme] captureCurrentToken: no token (refreshToken=${!!refreshToken}, userInfo=${!!userInfo})`);
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(userInfo.slice(4));
+    console.log(`[CC98 Live Better][theme] captureCurrentToken: theme=${JSON.stringify(parsed.theme)}, label=${parsed.name ?? 'N/A'}`);
+  } catch { /* ignore */ }
 
   return {
     refreshToken,
@@ -75,19 +83,51 @@ export async function loginWithAccount(
     );
     const token: AccountToken = JSON.parse(json);
 
-    // 注入所有 token 到 localStorage
+    // 注入所有 token 到 localStorage（补全 themeSetting 避免 CC98 ThemeSettingComponent 崩溃）
     localStorage.setItem(CC98.STORAGE_KEYS.ACCESS_TOKEN, token.accessToken ?? "");
     localStorage.setItem(CC98.STORAGE_KEYS.REFRESH_TOKEN, token.refreshToken);
     localStorage.setItem(
       CC98.STORAGE_KEYS.REFRESH_TOKEN_EXPIRATION,
       String(token.refreshTokenExpirationTime)
     );
-    localStorage.setItem(CC98.STORAGE_KEYS.USER_INFO, token.userInfo);
+    try {
+      const parsed = JSON.parse(token.userInfo.slice(4));
+      if (!parsed.themeSetting) {
+        parsed.themeSetting = { enableDayNightSwitch: false, syncWithBrowserDayNightMode: false, dayStartTime: "06:00", nightStartTime: "18:00" };
+      }
+      localStorage.setItem(CC98.STORAGE_KEYS.USER_INFO, `obj-${JSON.stringify(parsed)}`);
+    } catch {
+      localStorage.setItem(CC98.STORAGE_KEYS.USER_INFO, token.userInfo);
+    }
 
-    // 触发 CC98 的 storage 事件监听器让其感知到用户变更
-    window.dispatchEvent(new StorageEvent("storage", {
-      key: CC98.STORAGE_KEYS.USER_INFO,
-      newValue: token.userInfo,
+    // 清除 CC98 的缓存状态，强制重载后从 API 刷新
+    localStorage.removeItem("shouldNotRefreshUserInfo");
+    localStorage.removeItem("user-set-theme");
+
+    // 将新账号的主题写入 use-theme（bootstrap 优先读取这里，缺少时因 isNaN(-1) 兜底逻辑已损坏）
+    try {
+      const userInfoObj = JSON.parse(token.userInfo.slice(4));
+      if (typeof userInfoObj.theme === "number") {
+        localStorage.setItem("use-theme", `str-${userInfoObj.theme}`);
+      }
+      console.log(`[CC98 Live Better][theme] loginWithAccount: saved userInfo.theme=${JSON.stringify(userInfoObj.theme)}, wrote use-theme=str-${userInfoObj.theme}`);
+    } catch (e) {
+      console.log(`[CC98 Live Better][theme] loginWithAccount: failed to parse theme from userInfo:`, e);
+    }
+
+    sessionStorage.clear();
+
+    console.log(`[CC98 Live Better][theme] loginWithAccount final: use-theme=${localStorage.getItem("use-theme")}, userInfo theme=${(() => { try { return JSON.parse(localStorage.getItem("userInfo").slice(4)).theme; } catch { return "N/A"; } })()}`);
+
+    // 调试链
+    const chain = JSON.parse(localStorage.getItem("cc98-live-better:debug-chain") || '[]');
+    chain.push({ step: 'loginWithAccount', ts: Date.now(), userId: (() => { try { return JSON.parse(localStorage.getItem("userInfo").slice(4)).id; } catch { return null; } })(), wrotetheme: (() => { try { return JSON.parse(localStorage.getItem("userInfo").slice(4)).theme; } catch { return null; } })(), wroteUseTheme: localStorage.getItem("use-theme") });
+    localStorage.setItem("cc98-live-better:debug-chain", JSON.stringify(chain));
+
+    // 持久化到 localStorage 跨重载供下一次 init 读取
+    localStorage.setItem("cc98-live-better:debug-theme", JSON.stringify({
+      useTheme: localStorage.getItem("use-theme"),
+      userInfoTheme: (() => { try { return JSON.parse(localStorage.getItem("userInfo").slice(4)).theme; } catch { return null; } })(),
     }));
 
     return true;
