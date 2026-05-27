@@ -1,6 +1,6 @@
 /**
  * Service Worker 入口（后台脚本）
- * 负责注册浏览器级功能：右键菜单
+ * 负责注册浏览器级功能：右键菜单、快捷键
  */
 import { defineBackground } from "wxt/utils/define-background";
 import { browser } from "wxt/browser";
@@ -12,6 +12,7 @@ export default defineBackground({
   main() {
     console.log(`${LOG} service worker started`);
 
+    // 右键菜单
     browser.contextMenus.remove(MENU_ID).catch(() => {});
     browser.contextMenus.create({
       id: MENU_ID,
@@ -30,5 +31,17 @@ export default defineBackground({
         }).catch(() => {});
       }
     });
+
+    // 快捷键：Alt+C 切换账号
+    browser.commands.onCommand.addListener((command) => {
+      if (command === "open-account-switcher") {
+        browser.tabs.query({ url: "*://www.cc98.org/*" }).then((tabs) => {
+          for (const tab of tabs) {
+            browser.tabs.sendMessage(tab.id!, { type: "open-account-switcher" }).catch(() => {});
+          }
+        });
+      }
+    });
+    console.log(`${LOG} commands listener registered`);
   },
 });

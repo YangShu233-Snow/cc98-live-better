@@ -22,6 +22,12 @@ export default defineConfig({
       default_popup: "popup/index.html",
       default_title: "CC98 Live Better",
     },
+    commands: {
+      "open-account-switcher": {
+        suggested_key: { default: "Alt+C", mac: "Alt+C" },
+        description: "打开账号切换面板",
+      },
+    },
     browser_specific_settings: {
       gecko: {
         id: 'cc98-live-better@yangshu233.space',

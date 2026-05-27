@@ -10,6 +10,7 @@ import { waitForElement, showToast } from "../../core/dom";
 import { CC98 } from "../../core/cc98";
 import { Storage } from "../../core/storage";
 import { loginWithAccount, saveCurrentAccount, getCurrentUserId, removeAccount } from "./token-capture";
+import { decrypt, encrypt, generateSalt } from "./encrypt";
 
 /** 当前处于活跃状态的账号 ID，用于高亮标记 */
 let activeAccountId: number | null = getCurrentUserId();
@@ -117,8 +118,157 @@ async function showPasswordDialog(title: string): Promise<string | null> {
 }
 
 /**
+ * 显示设置密码弹窗（带二次确认）
+ * @param title 弹窗标题
+ * @returns 两次输入一致且非空时返回密码，否则返回 null
+ */
+async function showPasswordSetDialog(title: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const { overlay, box, close } = createOverlay();
+
+    const heading = document.createElement("h3");
+    heading.style.cssText = "margin: 0 0 16px; font-size: 16px; color: #333;";
+    heading.textContent = title;
+
+    const form = document.createElement("form");
+    form.autocomplete = "off";
+    form.style.cssText = "margin:0;padding:0";
+    form.addEventListener("submit", (e) => e.preventDefault());
+
+    const hiddenUsername = document.createElement("input");
+    hiddenUsername.type = "text";
+    hiddenUsername.autocomplete = "username";
+    hiddenUsername.tabIndex = -1;
+    hiddenUsername.readOnly = true;
+    hiddenUsername.setAttribute("aria-hidden", "true");
+    hiddenUsername.style.cssText = "position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none";
+
+    function makeInput(placeholder: string): HTMLInputElement {
+      const el = document.createElement("input");
+      el.type = "password";
+      el.autocomplete = "new-password";
+      el.placeholder = placeholder;
+      el.setAttribute("data-lpignore", "true");
+      el.setAttribute("data-1p-ignore", "true");
+      el.setAttribute("data-bwignore", "true");
+      el.style.cssText = `width: 100%; padding: 8px 12px; border: 1px solid #d9d9d9;
+        border-radius: 4px; font-size: 14px; box-sizing: border-box; outline: none;`;
+      return el;
+    }
+
+    const pwdInput = makeInput("请输入主密码");
+    const confirmInput = makeInput("再次输入主密码");
+    const errorMsg = document.createElement("div");
+    errorMsg.style.cssText = "color: #ff4d4f; font-size: 12px; margin-top: 4px; display: none;";
+
+    const inputSpacing = document.createElement("div");
+    inputSpacing.style.cssText = "height: 8px;";
+
+    function validate(): boolean {
+      if (!pwdInput.value) {
+        errorMsg.textContent = "密码不能为空";
+        errorMsg.style.display = "block";
+        return false;
+      }
+      if (pwdInput.value !== confirmInput.value) {
+        errorMsg.textContent = "两次输入的密码不一致";
+        errorMsg.style.display = "block";
+        return false;
+      }
+      errorMsg.style.display = "none";
+      return true;
+    }
+
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = "display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "取消";
+    cancelBtn.style.cssText = `padding: 6px 16px; border: 1px solid #d9d9d9;
+      border-radius: 4px; background: #fff; cursor: pointer; font-size: 14px;`;
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.textContent = "确认";
+    confirmBtn.style.cssText = `padding: 6px 16px; border: none; border-radius: 4px;
+      background: var(--cc98-primary, #1677ff); color: #fff; cursor: pointer; font-size: 14px;`;
+
+    function confirm(): void {
+      if (!validate()) return;
+      document.body.removeChild(overlay);
+      resolve(pwdInput.value);
+    }
+
+    pwdInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); confirmInput.focus(); }
+      if (e.key === "Escape") { document.body.removeChild(overlay); resolve(null); }
+    });
+    confirmInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); confirm(); }
+      if (e.key === "Escape") { document.body.removeChild(overlay); resolve(null); }
+    });
+    cancelBtn.onclick = () => { document.body.removeChild(overlay); resolve(null); };
+    confirmBtn.onclick = confirm;
+
+    btnRow.append(cancelBtn, confirmBtn);
+    form.append(hiddenUsername, pwdInput, inputSpacing, confirmInput, errorMsg, btnRow);
+    box.append(heading, form);
+    requestAnimationFrame(() => pwdInput.focus());
+  });
+}
+
+/**
+ * 修改主密码流程：验证旧密码 → 设置新密码 → 重新加密所有账号
+ */
+async function showChangePasswordFlow(): Promise<void> {
+  const accounts = (await Storage.getAccounts()) ?? [];
+  if (accounts.length === 0) {
+    showToast("没有已保存的账号");
+    return;
+  }
+
+  const oldPassword = await showPasswordDialog("输入当前主密码");
+  if (!oldPassword) return;
+
+  const salt = await Storage.getMasterSalt();
+  if (!salt) return;
+
+  // 验证旧密码是否有任一账号能解密
+  let verified = false;
+  for (const acc of accounts) {
+    try {
+      await decrypt(acc.encryptedData.iv, acc.encryptedData.ciphertext, oldPassword, salt);
+      verified = true;
+      break;
+    } catch { /* try next */ }
+  }
+  if (!verified) {
+    showToast("密码错误");
+    return;
+  }
+
+  const newPassword = await showPasswordSetDialog("设置新主密码");
+  if (!newPassword) return;
+
+  // 生成新盐值，重新加密所有账号
+  const newSalt = await generateSalt();
+  const reEncrypted = [];
+  for (const acc of accounts) {
+    const json = await decrypt(acc.encryptedData.iv, acc.encryptedData.ciphertext, oldPassword, salt);
+    const { iv, ciphertext } = await encrypt(json, newPassword, newSalt);
+    reEncrypted.push({
+      ...acc,
+      encryptedData: { salt: newSalt, iv, ciphertext },
+    });
+  }
+
+  await Storage.setMasterSalt(newSalt);
+  await Storage.setAccounts(reEncrypted);
+  showToast("主密码已修改");
+}
+
+/**
  * 显示账号选择弹窗（密码已验证）
- * 用户选择一个账号完成切换，底部提供"添加当前账号"选项
+ * 用户选择一个账号完成切换，底部提供"添加当前账号"和"修改主密码"选项
  */
 async function showAccountPicker(accounts: import("../../types").AccountData[], password: string): Promise<number | null> {
   return new Promise((resolve) => {
@@ -159,21 +309,31 @@ async function showAccountPicker(accounts: import("../../types").AccountData[], 
       allRows.push(row);
     }
 
-    // 添加当前账号选项
-    const addRow = document.createElement("div");
-    addRow.style.cssText = `padding: 8px 12px; cursor: pointer; font-size: 14px;
-      border-radius: 4px; color: var(--cc98-primary, #1677ff); border-top: 1px solid #e8e8e8;
-      margin-top: 4px; text-align: center;`;
-    addRow.textContent = "+ 保存当前账号";
-    addRow.addEventListener("click", async () => {
+    // 底部操作栏（不可键盘选择）
+    const actionRow = document.createElement("div");
+    actionRow.style.cssText = `display: flex; border-top: 1px solid #e8e8e8;
+      margin-top: 4px; text-align: center; font-size: 14px;`;
+    const saveBtn = document.createElement("div");
+    saveBtn.style.cssText = `flex: 1; padding: 8px 12px; cursor: pointer;
+      color: var(--cc98-primary, #1677ff); border-right: 1px solid #e8e8e8;`;
+    saveBtn.textContent = "保存当前账号";
+    saveBtn.addEventListener("click", async () => {
       document.body.removeChild(overlay);
       promptSaveAccount();
       resolve(null);
     });
-    list.appendChild(addRow);
-    allRows.push(addRow);
+    const changePwdBtn = document.createElement("div");
+    changePwdBtn.style.cssText = `flex: 1; padding: 8px 12px; cursor: pointer; color: #999;`;
+    changePwdBtn.textContent = "修改密码";
+    changePwdBtn.addEventListener("click", async () => {
+      document.body.removeChild(overlay);
+      showChangePasswordFlow();
+      resolve(null);
+    });
+    actionRow.append(saveBtn, changePwdBtn);
+    list.appendChild(actionRow);
 
-    // 键盘导航
+    // 键盘导航（仅账号列表，不包含底部操作栏）
     function highlightPickerRow(idx: number): void {
       allRows.forEach((r) => r.style.removeProperty("background"));
       if (idx >= 0 && idx < allRows.length) {
@@ -185,16 +345,11 @@ async function showAccountPicker(accounts: import("../../types").AccountData[], 
     function confirmPickerRow(idx: number): void {
       if (idx < 0 || idx >= allRows.length) return;
       document.body.removeChild(overlay);
-      if (idx < accounts.length) {
-        loginWithAccount(accounts[idx], password).then((ok) => {
-          if (ok) location.reload();
-          else showToast("密码错误");
-          resolve(accounts[idx].userId);
-        });
-      } else {
-        promptSaveAccount();
-        resolve(null);
-      }
+      loginWithAccount(accounts[idx], password).then((ok) => {
+        if (ok) location.reload();
+        else showToast("密码错误");
+        resolve(accounts[idx].userId);
+      });
     }
 
     // capture 阶段拦截键盘事件，避免被 CC98 jQuery 或 React 抢先消费
@@ -253,7 +408,7 @@ async function promptSaveAccount(): Promise<void> {
   if (existingSalt) {
     password = await showPasswordDialog("保存此账号到切换列表？");
   } else {
-    password = await showPasswordDialog("设置主密码以保存账号");
+    password = await showPasswordSetDialog("设置主密码以保存账号");
   }
 
   if (!password) return;
@@ -342,4 +497,21 @@ export async function initAccountSwitcher(): Promise<void> {
   bodyObserver.observe(document.body, { childList: true, subtree: true });
 }
 
-export { promptSaveAccount, showPasswordDialog };
+/** 从外部触发切换账号流程（Alt+C 快捷键用） */
+export async function openAccountSwitcher(): Promise<void> {
+  const accounts = (await Storage.getAccounts()) ?? [];
+  if (accounts.length === 0) {
+    const salt = await Storage.getMasterSalt();
+    if (!salt) {
+      await promptSaveAccount();
+    } else {
+      showToast("没有已保存的账号");
+    }
+    return;
+  }
+  const password = await showPasswordDialog("输入主密码切换账号");
+  if (!password) return;
+  await showAccountPicker(accounts, password);
+}
+
+export { promptSaveAccount, showPasswordDialog, showPasswordSetDialog, showChangePasswordFlow };

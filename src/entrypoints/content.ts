@@ -38,6 +38,9 @@ export default defineContentScript({
       if (msg.type === "save-meme" && typeof msg.url === "string") {
         handleSaveMemeMessage(msg.url);
       }
+      if (msg.type === "open-account-switcher") {
+        import("../features/account/switcher-ui").then((m) => m.openAccountSwitcher());
+      }
     });
   },
 });

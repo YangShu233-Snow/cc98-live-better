@@ -5,7 +5,9 @@
 import { injectCSS, showToast } from "../../core/dom";
 import { Storage } from "../../core/storage";
 import { onLocalStorageChange, getCurrentUserId, captureCurrentToken, saveCurrentAccount } from "./token-capture";
-import { initAccountSwitcher, showPasswordDialog } from "./switcher-ui";
+import { initAccountSwitcher, showPasswordDialog, showPasswordSetDialog } from "./switcher-ui";
+
+const LOG = "[CC98 Live Better v1.0.0-beta.1]";
 
 /** 账号功能相关的额外样式 */
 const STYLES = `
@@ -34,13 +36,10 @@ async function handleNewLogin(): Promise<void> {
   const userName: string = userInfo.name ?? `用户${userId}`;
 
   if (salt) {
-    // 已有主密码，只是这个账号没保存过
     showToast(`检测到新账号 ${userName}，点击"切换账号"可保存`);
     return;
   }
-
-  // 首次使用：引导设置主密码并保存当前账号
-  const password = await showPasswordDialog(
+  const password = await showPasswordSetDialog(
     `检测到账号 ${userName}，设置主密码以启用多账号切换`
   );
   if (!password) return;
@@ -54,10 +53,20 @@ async function handleNewLogin(): Promise<void> {
   }
 }
 
+/** 注册 Alt+C 快捷键（内容脚本层面的回退方案） */
+function installKeyboardShortcut(): void {
+  document.addEventListener("keydown", async (e) => {
+    if (e.altKey && (e.key === "c" || e.key === "C")) {
+      e.preventDefault();
+      e.stopPropagation();
+      const { openAccountSwitcher } = await import("./switcher-ui");
+      openAccountSwitcher();
+    }
+  }, { capture: true });
+}
+
 /** 初始化账号功能：注入 UI + 启动 localStorage 监听 */
 export async function initAccountFeature(): Promise<void> {
-  const LOG = "[CC98 Live Better v1.0.0-beta.1]";
-
   injectCSS(STYLES);
 
   if (captureCurrentToken()) {
@@ -67,6 +76,9 @@ export async function initAccountFeature(): Promise<void> {
   } else {
     console.log(`${LOG} account: not logged in`);
   }
+
+  installKeyboardShortcut();
+  console.log(`${LOG} account: Alt+C shortcut installed`);
 
   onLocalStorageChange(async (userInfo) => {
     if (userInfo) {
