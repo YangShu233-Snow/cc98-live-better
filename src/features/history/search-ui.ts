@@ -54,9 +54,15 @@ const STYLES = `
   flex: 1;
 }
 #${OVERLAY_ID} .cc98-history-author {
-  color: var(--cc98-primary, #999);
+  color: #999;
   font-size: 12px;
   margin-left: 8px;
+  flex-shrink: 0;
+}
+#${OVERLAY_ID} .cc98-history-board {
+  color: #bbb;
+  font-size: 11px;
+  margin-left: 4px;
   flex-shrink: 0;
 }
 #${OVERLAY_ID} .cc98-history-empty {
@@ -74,19 +80,6 @@ const STYLES = `
 }
 `;
 
-/**
- * 模糊匹配：检查 text 是否按顺序包含 query 的所有字符
- * query 应已小写化，避免每次调用重复 toLowerCase
- */
-function fuzzyMatch(text: string, queryLower: string): boolean {
-  const lower = text.toLowerCase();
-  let qi = 0;
-  for (let i = 0; i < lower.length && qi < queryLower.length; i++) {
-    if (lower[i] === queryLower[qi]) qi++;
-  }
-  return qi === queryLower.length;
-}
-
 /** 内存缓存 —— tracker 写入后会通过事件刷新 */
 let cachedHistory: HistoryItem[] = [];
 
@@ -94,12 +87,31 @@ async function refreshCache(): Promise<void> {
   cachedHistory = (await Storage.getHistory()) ?? [];
 }
 
+/**
+ * 自由模糊匹配：将 query 分词后（中文连续块 + 英文/数字连续块），
+ * 每个 token 都必须至少命中 item 的一个字符串字段（AND 逻辑）。
+ * 跨字段、乱序、子串匹配均支持。
+ */
+function flexibleFuzzyMatch(item: Record<string, unknown>, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return false;
+
+  const fieldValues = Object.values(item)
+    .filter((v): v is string => typeof v === "string")
+    .map((v) => v.toLowerCase());
+
+  const tokens = q.match(/[\u4e00-\u9fa5]+|[a-zA-Z0-9]+/g) || [q];
+
+  return tokens.every((token) =>
+    fieldValues.some((fv) => fv.includes(token)),
+  );
+}
+
 /** 从缓存搜索，短路终止的 top-10 */
 function topMatches(query: string, limit = 10): HistoryItem[] {
-  const q = query.toLowerCase();
   const result: HistoryItem[] = [];
   for (const h of cachedHistory) {
-    if (fuzzyMatch(h.title, q) || fuzzyMatch(h.author, q)) {
+    if (flexibleFuzzyMatch(h, query)) {
       result.push(h);
       if (result.length >= limit) break;
     }
@@ -141,8 +153,12 @@ function buildOverlay(searchBox: HTMLInputElement): void {
     for (const item of matched) {
       const row = createElement("div", { className: "cc98-history-item" });
       const title = createElement("span", { className: "cc98-history-title" }, item.title);
-      const author = createElement("span", { className: "cc98-history-author" }, item.author);
-      row.append(title, author);
+      const meta = createElement("span", { style: "display:flex;align-items:center;flex-shrink:0;" });
+      if (item.board) {
+        meta.append(createElement("span", { className: "cc98-history-board" }, item.board));
+      }
+      meta.append(createElement("span", { className: "cc98-history-author" }, item.author));
+      row.append(title, meta);
       row.addEventListener("click", () => { window.location.href = item.url; });
       overlay.appendChild(row);
     }

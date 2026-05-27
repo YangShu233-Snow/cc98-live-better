@@ -54,6 +54,8 @@ export interface HistoryItem {
   url: string;
   /** 访问时间戳 */
   timestamp: number;
+  /** 版面名称 */
+  board?: string;
 }
 
 /** 各功能的启用/禁用开关 */

@@ -47,6 +47,12 @@ function extractAuthor(): string | null {
   return el?.textContent?.trim() ?? null;
 }
 
+/** 从页面中提取版面名称 */
+function extractBoard(): string | null {
+  const el = document.querySelector<HTMLElement>('.topicInfo-boardMessage a div');
+  return el?.textContent?.trim() ?? null;
+}
+
 /** 捕获当前页面数据（仅在帖子页面有效） */
 export function captureCurrentPage(): HistoryItem | null {
   const topicId = getCurrentTopicId();
@@ -61,6 +67,7 @@ export function captureCurrentPage(): HistoryItem | null {
     author: extractAuthor() ?? "未知",
     url: `/topic/${topicId}`,
     timestamp: Date.now(),
+    board: extractBoard() ?? undefined,
   };
 }
 

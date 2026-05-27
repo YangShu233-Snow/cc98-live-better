@@ -64,13 +64,26 @@ async function showPasswordDialog(title: string): Promise<string | null> {
     heading.style.cssText = "margin: 0 0 16px; font-size: 16px; color: #333;";
     heading.textContent = title;
 
+    const form = document.createElement("form");
+    form.autocomplete = "off";
+    form.style.cssText = "margin:0;padding:0";
+    form.addEventListener("submit", (e) => e.preventDefault());
+
+    const hiddenUsername = document.createElement("input");
+    hiddenUsername.type = "text";
+    hiddenUsername.autocomplete = "username";
+    hiddenUsername.tabIndex = -1;
+    hiddenUsername.readOnly = true;
+    hiddenUsername.setAttribute("aria-hidden", "true");
+    hiddenUsername.style.cssText = "position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none";
+
     const input = document.createElement("input");
     input.type = "password";
-    input.name = "cc98-lb-master-password";
-    input.id = "cc98-lb-master-password-" + String(Date.now());
     input.autocomplete = "new-password";
-    input.readOnly = true;
     input.placeholder = "请输入主密码";
+    input.setAttribute("data-lpignore", "true");
+    input.setAttribute("data-1p-ignore", "true");
+    input.setAttribute("data-bwignore", "true");
     input.style.cssText = `width: 100%; padding: 8px 12px; border: 1px solid #d9d9d9;
       border-radius: 4px; font-size: 14px; box-sizing: border-box; outline: none;`;
 
@@ -87,17 +100,16 @@ async function showPasswordDialog(title: string): Promise<string | null> {
     confirmBtn.style.cssText = `padding: 6px 16px; border: none; border-radius: 4px;
       background: var(--cc98-primary, #1677ff); color: #fff; cursor: pointer; font-size: 14px;`;
 
-    // 页面加载完成后解除 readonly，阻止 Chrome 自动填充
-    setTimeout(() => { input.readOnly = false; }, 500);
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { document.body.removeChild(overlay); resolve(input.value); }
+      if (e.key === "Enter") { e.preventDefault(); document.body.removeChild(overlay); resolve(input.value); }
       if (e.key === "Escape") { document.body.removeChild(overlay); resolve(null); }
     });
     cancelBtn.onclick = () => { document.body.removeChild(overlay); resolve(null); };
     confirmBtn.onclick = () => { document.body.removeChild(overlay); resolve(input.value); };
 
     btnRow.append(cancelBtn, confirmBtn);
-    box.append(heading, input, btnRow);
+    form.append(hiddenUsername, input, btnRow);
+    box.append(heading, form);
 
     // requestAnimationFrame 确保 DOM 挂载完成后才聚焦，避免焦点泄漏到搜索框
     requestAnimationFrame(() => input.focus());
@@ -192,14 +204,17 @@ async function showAccountPicker(accounts: import("../../types").AccountData[], 
         return;
       }
       if (e.key === "ArrowDown") {
+        e.preventDefault();
         e.stopPropagation();
         selectedIdx = Math.min(selectedIdx + 1, allRows.length - 1);
         highlightPickerRow(selectedIdx);
       } else if (e.key === "ArrowUp") {
+        e.preventDefault();
         e.stopPropagation();
         selectedIdx = Math.max(selectedIdx - 1, 0);
         highlightPickerRow(selectedIdx);
       } else if (e.key === "Enter" && selectedIdx >= 0) {
+        e.preventDefault();
         e.stopPropagation();
         confirmPickerRow(selectedIdx);
       }
@@ -215,6 +230,12 @@ async function showAccountPicker(accounts: import("../../types").AccountData[], 
     cancelBtn.onclick = () => { document.body.removeChild(overlay); resolve(null); };
 
     box.append(heading, list, cancelBtn);
+
+    // 自动高亮第一行，方便键盘导航
+    if (allRows.length > 0) {
+      selectedIdx = 0;
+      highlightPickerRow(0);
+    }
   });
 }
 
