@@ -47,6 +47,7 @@ pnpm zip         # 打包为 .zip 供分发
   - `www.cc98.org` — 注入内容脚本、读取页面数据
   - `api.cc98.org` — CC98 API 调用
   - `file.cc98.org` — 读取用户上传的图片（收藏表情）
+  - `webvpn.zju.edu.cn/https/77726476706e69737468656265737421f1e748d22433310830079bab` — 支持 WebVPN
 
 ### 对于 CC98 服务器
 

@@ -17,6 +17,7 @@ export default defineConfig({
       "*://www.cc98.org/*",
       "*://api.cc98.org/*",
       "*://file.cc98.org/*",
+      "*://webvpn.zju.edu.cn/https/77726476706e69737468656265737421f1e748d22433310830079bab/*"
     ],
     icons: {
       '16': 'icon/16.png',
