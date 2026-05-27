@@ -8,6 +8,7 @@ import { Storage } from "../core/storage";
 import { injectThemeCSS } from "../core/theme";
 import { initAccountFeature } from "../features/account";
 import { initMemeFeature, handleSaveMemeMessage } from "../features/meme";
+import { initPMInjection } from "../features/meme/pm-gallery-ui";
 import { initHistoryFeature } from "../features/history";
 
 const LOG = "[CC98 Live Better v1.0.0-beta.1]";
@@ -25,11 +26,12 @@ export default defineContentScript({
 
     // 读取用户设置，按需初始化功能
     const featureSettings = (await Storage.getFeatureSettings()) ?? {
-      accountSwitcher: true, memeGallery: true, historySearch: true,
+      accountSwitcher: true, memeGallery: true, pmEmojiPanel: true, historySearch: true,
     };
 
     if (featureSettings.accountSwitcher) initAccountFeature();
     if (featureSettings.memeGallery) initMemeFeature();
+    if (featureSettings.pmEmojiPanel) initPMInjection();
     if (featureSettings.historySearch) initHistoryFeature();
 
     browser.runtime.onMessage.addListener((msg) => {

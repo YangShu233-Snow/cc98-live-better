@@ -62,6 +62,7 @@ export interface HistoryItem {
 export interface FeatureSettings {
   accountSwitcher: boolean;
   memeGallery: boolean;
+  pmEmojiPanel: boolean;
   historySearch: boolean;
 }
 

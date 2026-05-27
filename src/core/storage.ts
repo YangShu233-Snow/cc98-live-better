@@ -35,6 +35,7 @@ const KEYS = {
 const DEFAULT_FEATURES: FeatureSettings = {
   accountSwitcher: true,
   memeGallery: true,
+  pmEmojiPanel: true,
   historySearch: true,
 };
 

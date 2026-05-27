@@ -13,7 +13,7 @@ import { getAllMemes, removeMeme } from "./storage";
 const TAB_NAME = "收藏";
 
 /** 收藏网格的样式，沿用 CC98 表情面板的视觉风格 */
-const STYLES = `
+export const STYLES = `
 .cc98-meme-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -75,7 +75,7 @@ const STYLES = `
  * 将文本插入到编辑器当前光标位置
  * 兼容 textarea、contentEditable 和 React 受控组件
  */
-function insertIntoEditor(text: string): void {
+export function insertIntoEditor(text: string): void {
   const active = document.activeElement;
 
   if (active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement) {
@@ -102,7 +102,7 @@ function insertIntoEditor(text: string): void {
   }
 
   const editor = document.querySelector<HTMLTextAreaElement>(
-    "textarea.ubb-editor, textarea[name='content'], .ubb-editor textarea, [contenteditable='true']"
+    "textarea.ubb-editor, textarea[name='content'], .ubb-editor textarea, [contenteditable='true'], #postContent, .message-message-wPostArea"
   );
   if (editor) {
     editor.focus();
@@ -113,7 +113,7 @@ function insertIntoEditor(text: string): void {
 }
 
 /** 在指定容器内渲染表情网格 */
-async function renderGrid(container: HTMLElement): Promise<void> {
+export async function renderGrid(container: HTMLElement): Promise<void> {
   const memes = await getAllMemes();
   container.innerHTML = "";
 

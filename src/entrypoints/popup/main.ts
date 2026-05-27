@@ -8,7 +8,7 @@ const KEYS = {
 
 async function loadSettings(): Promise<FeatureSettings> {
   const result = await chrome.storage.local.get(KEYS.FEATURES);
-  return result[KEYS.FEATURES] ?? { accountSwitcher: true, memeGallery: true, historySearch: true };
+  return result[KEYS.FEATURES] ?? { accountSwitcher: false, memeGallery: true, pmEmojiPanel: true, historySearch: true };
 }
 
 async function saveSettings(s: FeatureSettings): Promise<void> {
@@ -20,10 +20,12 @@ async function main() {
 
   const accountToggle = document.getElementById("toggle-account") as HTMLInputElement;
   const memeToggle = document.getElementById("toggle-meme") as HTMLInputElement;
+  const pmEmojiToggle = document.getElementById("toggle-pm-emoji") as HTMLInputElement;
   const historyToggle = document.getElementById("toggle-history") as HTMLInputElement;
 
   accountToggle.checked = settings.accountSwitcher;
   memeToggle.checked = settings.memeGallery;
+  pmEmojiToggle.checked = settings.pmEmojiPanel;
   historyToggle.checked = settings.historySearch;
 
   accountToggle.addEventListener("change", () => {
@@ -32,6 +34,10 @@ async function main() {
   });
   memeToggle.addEventListener("change", () => {
     settings.memeGallery = memeToggle.checked;
+    saveSettings(settings);
+  });
+  pmEmojiToggle.addEventListener("change", () => {
+    settings.pmEmojiPanel = pmEmojiToggle.checked;
     saveSettings(settings);
   });
   historyToggle.addEventListener("change", () => {
