@@ -179,28 +179,45 @@ function injectIntoEmojiPanel(): void {
   btn.dataset.cc98Meme = "tab";
   btn.textContent = TAB_NAME;
 
+  const wrapper = document.createElement("div");
+  wrapper.style.cssText = "position:relative;height:0";
+
   const content = document.createElement("div");
   content.className = `ubb-emoji-content ${contentClass}`;
-  content.style.display = "none";
-  content.style.height = "18rem";
-  content.style.overflowY = "auto";
+  Object.assign(content.style, {
+    position: "absolute",
+    bottom: "0",
+    left: "0",
+    width: "100%",
+    height: "18rem",
+    backgroundColor: "#fff",
+    display: "none",
+    zIndex: "999",
+    overflowY: "auto",
+  });
 
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+
     btnContainer.querySelectorAll("button").forEach((b) => {
       b.classList.remove("ubb-emoji-button-active");
     });
     btn.classList.add("ubb-emoji-button-active");
-
-    emojiContainer.querySelectorAll('[class^="ubb-emoji-content"]').forEach((c) => {
-      (c as HTMLElement).style.display = "none";
-    });
-    content.style.display = "";
-
+    content.style.display = "block";
     renderGrid(content);
   });
 
+  btnContainer.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName !== "BUTTON") return;
+    if (target === btn || target.dataset.cc98Meme) return;
+    content.style.display = "none";
+    btn.classList.remove("ubb-emoji-button-active");
+  });
+
   btnContainer.appendChild(btn);
-  emojiContainer.appendChild(content);
+  wrapper.appendChild(content);
+  emojiContainer.appendChild(wrapper);
 }
 
 /** 启动 observer，检测到 .ubb-emoji 出现时注入收藏标签 */

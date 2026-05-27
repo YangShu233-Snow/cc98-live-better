@@ -21,5 +21,11 @@ export default defineConfig({
       default_popup: "popup/index.html",
       default_title: "CC98 Live Better",
     },
+    browser_specific_settings: {
+      gecko: {
+        id: 'cc98-live-better@yangshu233.space',
+        strict_min_version: '109.0'
+      }
+    },
   },
 });

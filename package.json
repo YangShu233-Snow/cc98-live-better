@@ -6,8 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "wxt",
-    "build": "wxt build",
-    "zip": "wxt zip"
+    "build": "wxt build -b chrome && wxt build -b firefox && wxt build -b edge",
+    "zip": "wxt zip -b chrome && wxt zip -b firefox && wxt zip -b edge"
   },
   "keywords": [],
   "author": "",
