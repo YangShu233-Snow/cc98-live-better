@@ -34,12 +34,17 @@ export default defineContentScript({
     if (featureSettings.pmEmojiPanel) initPMInjection();
     if (featureSettings.historySearch) initHistoryFeature();
 
-    browser.runtime.onMessage.addListener((msg) => {
+    browser.runtime.onMessage.addListener(async (msg) => {
       if (msg.type === "save-meme" && typeof msg.url === "string") {
-        handleSaveMemeMessage(msg.url);
+        const settings = await Storage.getFeatureSettings();
+        if (settings?.memeGallery) handleSaveMemeMessage(msg.url);
       }
       if (msg.type === "open-account-switcher") {
-        import("../features/account/switcher-ui").then((m) => m.openAccountSwitcher());
+        const settings = await Storage.getFeatureSettings();
+        if (settings?.accountSwitcher) {
+          const { openAccountSwitcher } = await import("../features/account/switcher-ui");
+          openAccountSwitcher();
+        }
       }
     });
   },

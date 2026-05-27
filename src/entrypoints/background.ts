@@ -4,23 +4,38 @@
  */
 import { defineBackground } from "wxt/utils/define-background";
 import { browser } from "wxt/browser";
+import { Storage } from "../core/storage";
 
 const LOG = "[CC98 Live Better v1.0.0-beta.1]";
 const MENU_ID = "save-as-meme";
 
-export default defineBackground({
-  main() {
-    console.log(`${LOG} service worker started`);
+async function updateContextMenu() {
+  const settings = await Storage.getFeatureSettings();
+  const enabled = settings?.memeGallery ?? true;
 
-    // 右键菜单
-    browser.contextMenus.remove(MENU_ID).catch(() => {});
+  await browser.contextMenus.remove(MENU_ID).catch(() => {});
+  if (enabled) {
     browser.contextMenus.create({
       id: MENU_ID,
       title: "收藏到 CC98 表情包",
       contexts: ["image"],
       documentUrlPatterns: ["*://www.cc98.org/*"],
     });
-    console.log(`${LOG} context menu registered`);
+  }
+}
+
+export default defineBackground({
+  main() {
+    console.log(`${LOG} service worker started`);
+
+    updateContextMenu();
+    console.log(`${LOG} context menu updated`);
+
+    browser.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && "local:cc98-live-better:features" in changes) {
+        updateContextMenu();
+      }
+    });
 
     browser.contextMenus.onClicked.addListener((info, tab) => {
       if (info.menuItemId === MENU_ID && info.srcUrl) {
@@ -32,7 +47,6 @@ export default defineBackground({
       }
     });
 
-    // 快捷键：Alt+C 切换账号（仅当前焦点标签页）
     browser.commands.onCommand.addListener((command) => {
       if (command === "open-account-switcher") {
         browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
