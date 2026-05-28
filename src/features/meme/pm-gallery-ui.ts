@@ -1,10 +1,15 @@
-import { injectCSS, createElement, waitForElement } from "../../core/dom";
+import { injectCSS, createElement } from "../../core/dom";
 import { STYLES, renderGrid } from "./gallery-ui";
 import { insertIntoEditor } from "./gallery-ui";
 import { EMOJI_GROUPS } from "../emoji/data";
 import type { EmojiGroup } from "../emoji/data";
 
 const LOG = "[CC98 Live Better v1.0.0-beta.1][pm-meme]";
+const POST_CONTENT_SELECTOR = "#postContent";
+const PM_POST_AREA_SELECTOR = ".message-message-wPost";
+const PM_BUTTON_AREA_SELECTOR = ".message-message-wPostBtn-wrapper";
+const PM_OVERLAY_SELECTOR = "[data-cc98-meme-pm-overlay]";
+const PM_BUTTON_SELECTOR = "[data-cc98-meme-pm-btn]";
 
 const PANEL_STYLES = `
 .cc98-meme-pm-overlay {
@@ -141,27 +146,34 @@ function buildPanel(): HTMLElement {
   return panel;
 }
 
-async function injectIntoPM(): Promise<void> {
-  await waitForElement("#postContent");
-  const textarea = document.querySelector<HTMLTextAreaElement>("#postContent");
+function ensureOverlay(postArea: HTMLElement): HTMLElement {
+  let overlay = postArea.querySelector<HTMLElement>(PM_OVERLAY_SELECTOR);
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "cc98-meme-pm-overlay";
+    overlay.dataset.cc98MemePmOverlay = "";
+    overlay.appendChild(buildPanel());
+    postArea.appendChild(overlay);
+  } else if (!overlay.querySelector(".cc98-pm-emoji-panel")) {
+    overlay.appendChild(buildPanel());
+  }
+
+  postArea.style.position = "relative";
+  return overlay;
+}
+
+function ensurePMInjection(): void {
+  const textarea = document.querySelector<HTMLTextAreaElement>(POST_CONTENT_SELECTOR);
   if (!textarea) return;
 
-  const postArea = textarea.closest<HTMLElement>(".message-message-wPost");
+  const postArea = textarea.closest<HTMLElement>(PM_POST_AREA_SELECTOR);
   if (!postArea) return;
 
-  const btnArea = postArea.querySelector<HTMLElement>(".message-message-wPostBtn-wrapper");
+  const btnArea = postArea.querySelector<HTMLElement>(PM_BUTTON_AREA_SELECTOR);
   if (!btnArea) return;
 
-  if (postArea.querySelector("[data-cc98-meme-pm-overlay]")) return;
-
-  const overlay = document.createElement("div");
-  overlay.className = "cc98-meme-pm-overlay";
-  overlay.dataset.cc98MemePmOverlay = "";
-  postArea.appendChild(overlay);
-  postArea.style.position = "relative";
-
-  const panel = buildPanel();
-  overlay.appendChild(panel);
+  const overlay = ensureOverlay(postArea);
+  if (btnArea.querySelector(PM_BUTTON_SELECTOR)) return;
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -170,24 +182,35 @@ async function injectIntoPM(): Promise<void> {
   btn.textContent = "表情";
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const ta = document.querySelector<HTMLTextAreaElement>("#postContent");
+    const ta = document.querySelector<HTMLTextAreaElement>(POST_CONTENT_SELECTOR);
     if (!ta) return;
     if (document.activeElement !== ta) ta.focus();
     overlay.classList.toggle("open");
   });
   btnArea.insertBefore(btn, btnArea.firstChild);
 
-  document.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest("[data-cc98-meme-pm-btn], [data-cc98-meme-pm-overlay]")) {
-      overlay.classList.remove("open");
-    }
-  }, { capture: true });
-
-  console.log(`${LOG} injectIntoPM: complete`);
+  console.log(`${LOG} ensurePMInjection: button inserted`);
 }
 
 export function initPMInjection(): void {
   injectCSS(STYLES + PANEL_STYLES);
-  injectIntoPM();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const scheduleEnsure = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(ensurePMInjection, 50);
+  };
+
+  ensurePMInjection();
+
+  const observer = new MutationObserver(scheduleEnsure);
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest(`${PM_BUTTON_SELECTOR}, ${PM_OVERLAY_SELECTOR}`)) {
+      document.querySelectorAll(PM_OVERLAY_SELECTOR).forEach((overlay) => {
+        overlay.classList.remove("open");
+      });
+    }
+  }, { capture: true });
 }
