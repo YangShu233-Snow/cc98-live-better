@@ -15,7 +15,7 @@ const LOG = "[CC98 Live Better v1.0.0-beta.1]";
 
 export default defineContentScript({
   /** 仅在 CC98 域名下运行 */
-  matches: ["*://www.cc98.org/*"],
+  matches: ["*://www.cc98.org/*", "*://webvpn.zju.edu.cn/https/77726476706e69737468656265737421e7e056d22433310830079bab/*"],
   /** DOM 就绪后执行，不等待图片加载 */
   runAt: "document_end",
   async main() {

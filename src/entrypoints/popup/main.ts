@@ -1,10 +1,15 @@
 import type { FeatureSettings } from "../../types";
+import { exportAll, importAll } from "../../core/export";
 
-// 必须与 @wxt-dev/storage 内部使用的实际 key 一致
-// storage.getItem("local:xx:yy") 实际读写 chrome.storage.local 的 "xx:yy" 键
 const KEYS = {
   FEATURES: "cc98-live-better:features",
 };
+
+function status(msg: string, type?: "ok" | "err") {
+  const el = document.getElementById("status-msg")!;
+  el.textContent = msg;
+  el.className = "status" + (type ? ` ${type}` : "");
+}
 
 async function loadSettings(): Promise<FeatureSettings> {
   const result = await chrome.storage.local.get(KEYS.FEATURES);
@@ -43,6 +48,41 @@ async function main() {
   historyToggle.addEventListener("change", () => {
     settings.historySearch = historyToggle.checked;
     saveSettings(settings);
+  });
+
+  document.getElementById("btn-export")!.addEventListener("click", async () => {
+    const ok = await exportAll();
+    status(ok ? "数据已导出" : "没有数据可导出", ok ? "ok" : "err");
+  });
+
+  document.getElementById("btn-import")!.addEventListener("click", () => {
+    document.getElementById("file-picker")!.click();
+  });
+
+  document.getElementById("file-picker")!.addEventListener("change", async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    if (!confirm("导入将覆盖所有现有数据，确认继续？")) {
+      (e.target as HTMLInputElement).value = "";
+      return;
+    }
+
+    const err = await importAll(file);
+    (e.target as HTMLInputElement).value = "";
+
+    if (err) {
+      status(err, "err");
+      return;
+    }
+
+    status("数据已导入", "ok");
+
+    const s = await loadSettings();
+    accountToggle.checked = s.accountSwitcher;
+    memeToggle.checked = s.memeGallery;
+    pmEmojiToggle.checked = s.pmEmojiPanel;
+    historyToggle.checked = s.historySearch;
   });
 }
 

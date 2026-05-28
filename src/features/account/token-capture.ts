@@ -9,7 +9,7 @@
  * 切换账号时只需注入目标账号的 refresh_token + userInfo，
  * 页面自动换取新的 access_token
  */
-import { CC98 } from "../../core/cc98";
+import { CC98, cc98Key } from "../../core/cc98";
 import { Storage } from "../../core/storage";
 import { encrypt, generateSalt } from "./encrypt";
 import { decrypt } from "./encrypt";
@@ -101,33 +101,36 @@ export async function loginWithAccount(
     }
 
     // 清除 CC98 的缓存状态，强制重载后从 API 刷新
-    localStorage.removeItem("shouldNotRefreshUserInfo");
-    localStorage.removeItem("user-set-theme");
+    localStorage.removeItem(cc98Key("shouldNotRefreshUserInfo"));
+    localStorage.removeItem(cc98Key("user-set-theme"));
 
     // 将新账号的主题写入 use-theme（bootstrap 优先读取这里，缺少时因 isNaN(-1) 兜底逻辑已损坏）
     try {
       const userInfoObj = JSON.parse(token.userInfo.slice(4));
       if (typeof userInfoObj.theme === "number") {
-        localStorage.setItem("use-theme", `str-${userInfoObj.theme}`);
+        localStorage.setItem(cc98Key("use-theme"), `str-${userInfoObj.theme}`);
       }
       console.log(`[CC98 Live Better][theme] loginWithAccount: saved userInfo.theme=${JSON.stringify(userInfoObj.theme)}, wrote use-theme=str-${userInfoObj.theme}`);
     } catch (e) {
       console.log(`[CC98 Live Better][theme] loginWithAccount: failed to parse theme from userInfo:`, e);
     }
 
-    sessionStorage.clear();
+    // 定向清除 CC98 缓存，不清 sessionStorage 以免破坏 WebVPN 等代理的自身状态
+    ["responseState", "atState", "systemState", "recentContact"].forEach((key) =>
+      sessionStorage.removeItem(key)
+    );
 
-    console.log(`[CC98 Live Better][theme] loginWithAccount final: use-theme=${localStorage.getItem("use-theme")}, userInfo theme=${(() => { try { return JSON.parse(localStorage.getItem("userInfo").slice(4)).theme; } catch { return "N/A"; } })()}`);
+    console.log(`[CC98 Live Better][theme] loginWithAccount final: use-theme=${localStorage.getItem(cc98Key("use-theme"))}, userInfo theme=${(() => { try { return JSON.parse(localStorage.getItem(cc98Key("userInfo")).slice(4)).theme; } catch { return "N/A"; } })()}`);
 
     // 调试链
     const chain = JSON.parse(localStorage.getItem("cc98-live-better:debug-chain") || '[]');
-    chain.push({ step: 'loginWithAccount', ts: Date.now(), userId: (() => { try { return JSON.parse(localStorage.getItem("userInfo").slice(4)).id; } catch { return null; } })(), wrotetheme: (() => { try { return JSON.parse(localStorage.getItem("userInfo").slice(4)).theme; } catch { return null; } })(), wroteUseTheme: localStorage.getItem("use-theme") });
+    chain.push({ step: 'loginWithAccount', ts: Date.now(), userId: (() => { try { return JSON.parse(localStorage.getItem(cc98Key("userInfo")).slice(4)).id; } catch { return null; } })(), wrotetheme: (() => { try { return JSON.parse(localStorage.getItem(cc98Key("userInfo")).slice(4)).theme; } catch { return null; } })(), wroteUseTheme: localStorage.getItem(cc98Key("use-theme")) });
     localStorage.setItem("cc98-live-better:debug-chain", JSON.stringify(chain));
 
     // 持久化到 localStorage 跨重载供下一次 init 读取
     localStorage.setItem("cc98-live-better:debug-theme", JSON.stringify({
-      useTheme: localStorage.getItem("use-theme"),
-      userInfoTheme: (() => { try { return JSON.parse(localStorage.getItem("userInfo").slice(4)).theme; } catch { return null; } })(),
+      useTheme: localStorage.getItem(cc98Key("use-theme")),
+      userInfoTheme: (() => { try { return JSON.parse(localStorage.getItem(cc98Key("userInfo")).slice(4)).theme; } catch { return null; } })(),
     }));
 
     return true;

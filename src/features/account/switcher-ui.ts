@@ -7,7 +7,7 @@
  * - hover 该选项后右侧展开子菜单显示已保存账号列表
  */
 import { waitForElement, showToast } from "../../core/dom";
-import { CC98 } from "../../core/cc98";
+import { CC98, cc98Key } from "../../core/cc98";
 import { Storage } from "../../core/storage";
 import { loginWithAccount, saveCurrentAccount, getCurrentUserId, removeAccount, captureCurrentToken } from "./token-capture";
 import { decrypt, encrypt, generateSalt } from "./encrypt";
@@ -503,17 +503,17 @@ async function refreshCurrentAccount(password: string, accounts: import("../../t
   persistDebug({ passwordValid: valid });
   if (!valid) return;
 
-  const useThemeVal = localStorage.getItem("use-theme");
+  const useThemeVal = localStorage.getItem(cc98Key("use-theme"));
   const themeNum = useThemeVal ? parseInt(useThemeVal.slice(4), 10) : NaN;
   let mergedTheme: number | null = null;
   if (!isNaN(themeNum)) {
-    const raw = localStorage.getItem("userInfo");
+    const raw = localStorage.getItem(cc98Key("userInfo"));
     if (raw) {
       try {
         const info = JSON.parse(raw.slice(4));
         mergedTheme = info.theme;
         info.theme = themeNum;
-        localStorage.setItem("userInfo", `str-${JSON.stringify(info)}`);
+        localStorage.setItem(cc98Key("userInfo"), `obj-${JSON.stringify(info)}`);
         persistDebug({ useTheme: useThemeVal, fromTheme: mergedTheme, toTheme: themeNum });
       } catch (e) {
         persistDebug({ mergeError: String(e) });

@@ -19,7 +19,7 @@ async function updateContextMenu() {
       id: MENU_ID,
       title: "收藏到 CC98 表情包",
       contexts: ["image"],
-      documentUrlPatterns: ["*://www.cc98.org/*"],
+      documentUrlPatterns: ["*://www.cc98.org/*", "*://webvpn.zju.edu.cn/*"],
     });
   }
 }
@@ -51,7 +51,7 @@ export default defineBackground({
       if (command === "open-account-switcher") {
         browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
           const tab = tabs[0];
-          if (tab?.id && tab.url?.includes("cc98.org")) {
+          if (tab?.id && (tab.url?.includes("cc98.org") || tab.url?.includes("webvpn.zju.edu.cn"))) {
             browser.tabs.sendMessage(tab.id, { type: "open-account-switcher" }).catch(() => {});
           }
         });

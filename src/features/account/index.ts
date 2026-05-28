@@ -3,6 +3,7 @@
  * 集合初始化、localStorage 监听、UI 注入
  */
 import { injectCSS, showToast } from "../../core/dom";
+import { cc98Key } from "../../core/cc98";
 import { Storage } from "../../core/storage";
 import { onLocalStorageChange, getCurrentUserId, captureCurrentToken, saveCurrentAccount } from "./token-capture";
 import { initAccountSwitcher, showPasswordDialog, showPasswordSetDialog } from "./switcher-ui";
@@ -31,7 +32,7 @@ async function handleNewLogin(): Promise<void> {
 
   const salt = await Storage.getMasterSalt();
   const userInfo = JSON.parse(
-    localStorage.getItem("userInfo")?.slice(4) ?? "{}"
+    localStorage.getItem(cc98Key("userInfo"))?.slice(4) ?? "{}"
   );
   const userName: string = userInfo.name ?? `用户${userId}`;
 
